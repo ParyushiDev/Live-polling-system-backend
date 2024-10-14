@@ -10,7 +10,7 @@ dotenv.config();
 
 const dbKey = process.env.DB_KEY;
 
-const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEy);
+const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 const app = express();
 const server = createServer(app);
