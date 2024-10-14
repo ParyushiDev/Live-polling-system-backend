@@ -2,6 +2,15 @@ import { Server } from "socket.io";
 import express from "express";
 import { createServer } from "http";
 import cors from "cors";
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+import initSocket from "./socket.js";
+
+dotenv.config();
+
+const dbKey = process.env.DB_KEY;
+
+const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEy);
 
 const app = express();
 const server = createServer(app);
@@ -13,56 +22,25 @@ const io = new Server(server, {
   },
 });
 
-const allStudents = new Map();
-let question = {};
-let answered = 0;
+initSocket(io, db);
 
-io.on("connection", (socket) => {
-  console.log(socket.id);
-  /*
-    {
-      question,
-      options: [
-        {value: "", correct: ""}
-      ]
-    }
-  */
-  socket.on("question", (data) => {
-    question = {
-      question: data.question,
-      options: data.options.map(({ value }) => ({
-        value, // option name
-        count: 0, // number of people who have answered this option
-      })),
-    };
+app.use(cors());
 
-    io.emit("newQuestion", question);
-  });
+app.get("/", (_, res) => {
+  res.json({ msg: "hello" });
+})
 
-  // data => student name
-  socket.on("newStudent", (name) => {
-    allStudents.set(socket.id, name);
-    console.log(allStudents);
-  });
+app.get("/getAll", async (req, res) => {
+  const { data, error } = await db.from("past_polls").select();
 
-  // data = index of question answered
-  socket.on("answer", (index) => {
-    question.options[index].count++;
-    answered++;
+  console.log(data, error);
 
-    console.log(JSON.stringify(question));
-
-    io.emit("questionStatus", question);
-
-    if (answered === allStudents.length) {
-      io.emit("endQuestion");
-    }
-  });
-
-  socket.on("disconnect", () => {
-    allStudents.delete(socket.id);
-  });
-});
+  if (error) {
+    res.status(500).json({error})
+  } else {
+    res.json(data);
+  }
+})
 
 server.listen(5000, () =>
   console.log("Server Started at http://localhost:5000")
